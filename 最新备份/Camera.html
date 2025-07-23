@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>카메라 제어</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    #wrapper {
+      width:700px; height:500px;
+      margin:20px auto; position:relative;
+      border:2px solid #00aaff; background:#fbfcfc;
+      font-family:sans-serif;
+    }
+    header {
+      position:absolute; top:0; left:0;
+      width:100%; height:80px;
+      display:flex; align-items:center; padding:0 20px;
+    }
+    #logo { width:300px; height:60px; margin-right:20px; }
+    #logo img { width:100%; height:100%; object-fit:contain; }
+    header h1 {
+      position:absolute; left:50%; transform:translateX(-50%);
+      font-size:32px;
+    }
+
+    /* 座位按钮 */
+    .seat {
+      position:absolute; width:50px; height:50px; line-height:50px;
+      text-align:center; border:2px solid #002f47; border-radius:10px;
+      background-image:url("../static/speaker.png"); background-size:cover;
+      background-position:center; color:#fff; font-weight:bold; cursor:pointer;
+      font-size:16px; text-shadow:1px 1px 2px #000; transition:all .2s;
+    }
+    .seat:hover { transform:scale(1.05); }
+    .seat.disabled { filter:grayscale(100%); opacity:.5; cursor:not-allowed; pointer-events:none; }
+    .seat.selected { box-shadow:0 0 0 4px #fb2b01 inset; }
+    #seat1  { top:380px; left:50px; }
+    #seat2  { top:310px; left:50px; }
+    #seat3  { top:240px; left:50px; }
+    #seat4  { top:170px; left:50px; }
+    #seat5  { top:100px; left:50px; }
+    #seat6  { top:100px; left:110px; }
+    #seat7  { top:100px; left:170px; }
+    #seat8  { top:170px; left:170px; }
+    #seat9  { top:240px; left:170px; }
+    #seat10 { top:310px; left:170px; }
+    #seat11 { top:380px; left:170px; }
+
+    /* 摄像头选择 */
+    .camera-panel2 {
+      position:absolute; top:100px;
+      left:calc(50% - 60px);
+      display:flex; gap:30px;
+    }
+    .camera-select {
+      width:100px; height:50px; border:4px solid transparent; border-radius:10px;
+      background-image:url("../static/security-camera.png"); background-size:cover;
+      background-position:center; display:flex; align-items:center; justify-content:center;
+      color:#fff; font-size:16px; font-weight:bold; text-shadow:1px 1px 2px #000;
+      cursor:pointer; transition:border-color .2s;
+    }
+    .camera-select.active { background-image:url("../static/security2-camera.png"); border-color:#f21f1f; }
+    .camera-select.disabled { filter:grayscale(100%); opacity:0.5; cursor:not-allowed; pointer-events:none; }
+
+    /* PTZ 控制 */
+    .camera-panel {
+      position:absolute; top:200px;
+      left:calc(50% - 30px);
+      display:flex; flex-direction:column; align-items:center; gap:10px;
+    }
+    .control-row { display:flex; align-items:center; gap:20px; }
+    .controls { display:flex; flex-direction:column; align-items:center; gap:10px; }
+    .arrow { width:0; height:0; border-style:solid; cursor:pointer; }
+    .up    { border-width:0 15px 20px 15px; border-color:transparent transparent #000 transparent; }
+    .down  { border-width:20px 15px 0 15px; border-color:#000 transparent transparent transparent; }
+    .left  { border-width:15px 20px 15px 0; border-color:transparent #000 transparent transparent; }
+    .right { border-width:15px 0 15px 20px; border-color:transparent transparent transparent #000; }
+    #orientationDisplay {
+      height:20px; line-height:20px; text-align:center;
+      background:rgba(255,255,255,0.8); border-radius:4px;
+      font-size:14px; color:#333; padding:0 10px;
+    }
+    .zoom-controls { display:flex; flex-direction:column; gap:10px; }
+    .zoom-btn {
+      width:40px; height:40px; border:2px solid #00aaff;
+      border-radius:6px; background:#fff; cursor:pointer;
+      background-repeat:no-repeat; background-position:center; background-size:contain;
+    }
+    #btnZoomIn.zoom-btn { background-image:url('../static/zoom-in.png'); }
+    #btnZoomOut.zoom-btn { background-image:url('../static/zoom-out.png'); }
+
+    /* 操作按钮 */
+    .action-row { display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+    .action-btn {
+      padding:8px 16px; border:2px solid #00aaff;
+      border-radius:6px; background:#00aaff; color:#fff;
+      font-size:14px; cursor:pointer; width:120px;
+    }
+
+    /* 全景按钮 */
+    #modePanorama {
+      position:absolute;
+      top:440px;
+      left:135px;
+      padding:8px 16px; border:2px solid #bcdae8;
+      border-radius:6px; background:#b2ccda; color:#2e2b2b;
+      font-size:14px; cursor:pointer; width:150px;
+      transform:translateX(-50%);
+    }
+    #modePanorama.selected { box-shadow:0 0 0 4px #ff0e02 inset; }
+
+    /* 主页面跳转 */
+    .panel-right2 { position:absolute; right:0; top:430px; display:flex; flex-direction:column; gap:0; }
+    .panel-btn2 { width:150px; height:50px; border:5px solid #141314; border-radius:10px; background:#fff; font-size:18px; cursor:pointer; }
+
+
+    /* 禁用状态样式 */
+    button:disabled,
+    .zoom-btn:disabled,
+    .arrow.disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="wrapper">
+    <header>
+      <div id="logo"><img src="../static/LOGO.png" alt="公司 Logo"></div>
+      <h1>카메라 제어</h1>
+    </header>
+
+    <!-- 座位按钮 -->
+    <button class="seat" id="seat1">1</button>
+    <button class="seat" id="seat2">2</button>
+    <button class="seat" id="seat3">3</button>
+    <button class="seat" id="seat4">4</button>
+    <button class="seat" id="seat5">5</button>
+    <button class="seat" id="seat6">6</button>
+    <button class="seat" id="seat7">7</button>
+    <button class="seat" id="seat8">8</button>
+    <button class="seat" id="seat9">9</button>
+    <button class="seat" id="seat10">10</button>
+    <button class="seat" id="seat11">11</button>
+
+    <!-- 摄像头选择 -->
+    <div class="camera-panel2">
+      <button type="button" class="camera-select" id="cam1">Camera1</button>
+      <button type="button" class="camera-select" id="cam2">Camera2</button>
+    </div>
+
+    <!-- PTZ 控制与缩放 -->
+    <div class="camera-panel">
+      <div class="control-row">
+        <div class="controls">
+          <div class="arrow up" data-dir="tilt" data-step="1"></div>
+          <div style="display:flex; gap:40px;"><div class="arrow left" data-dir="pan" data-step="-1"></div><div class="arrow right" data-dir="pan" data-step="1"></div></div>
+          <div class="arrow down" data-dir="tilt" data-step="-1"></div>
+        </div>
+        <div class="zoom-controls">
+          <button id="btnZoomIn" class="zoom-btn"></button>
+          <button id="btnZoomOut" class="zoom-btn"></button>
+        </div>
+      </div>
+      <div id="orientationDisplay">Pan: –, Tilt: –</div>
+
+      <div>
+      <button id="btnChangePreset" class="action-btn">설정</button>
+      </div>
+      <div class="action-row">
+        <button id="btnSavePreset" class="action-btn">설정 저장</button>
+      </div>
+    </div>
+
+    <!-- 全景按钮 -->
+    <button id="modePanorama">전경</button>
+
+    <!-- 主页面跳转 -->
+    <div class="panel-right2">
+      <button class="panel-btn2" onclick="location.href='mike'">메인</button>
+    </div>
+  </div>
+
+  <script>
+    async function postJson(path,data){
+      const res=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+    const seatToPTZ={seat1:{pan:30,tilt:-10},seat2:{pan:10,tilt:-5},seat3:{pan:0,tilt:0},seat4:{pan:-10,tilt:5},seat5:{pan:-30,tilt:10},seat6:{pan:-60,tilt:0},seat7:{pan:60,tilt:10},seat8:{pan:40,tilt:0},seat9:{pan:20,tilt:-5},seat10:{pan:-20,tilt:-5},seat11:{pan:-40,tilt:0}};
+    let selectedSeat=null,selectedCam=null;
+    const orientationMap={cam1:{pan:0,tilt:0,zoom:100},cam2:{pan:0,tilt:0,zoom:100}};
+    const seats=document.querySelectorAll('.seat');
+    const cams=document.querySelectorAll('.camera-select');
+    const cam1=document.getElementById('cam1');
+    const cam2=document.getElementById('cam2');
+    const modePanorama=document.getElementById('modePanorama');
+
+    const arrows=document.querySelectorAll('.arrow');
+    const orientationDisplay=document.getElementById('orientationDisplay');
+    const btnZoomIn=document.getElementById('btnZoomIn');
+    const btnZoomOut=document.getElementById('btnZoomOut');
+
+    //修改预设
+    const btnSave=document.getElementById('btnSavePreset');
+    const btnChange=document.getElementById('btnChangePreset');
+
+    function updateCameraButtons(){
+      if(modePanorama.classList.contains('selected')){
+        cams.forEach(c=>c.classList.add('disabled'));
+        cams.forEach(c=>c.classList.remove('active'));
+        selectedCam=null;
+      } else if(selectedSeat==='seat6'|| selectedSeat==='seat7'|| selectedSeat==='seat8'|| selectedSeat==='seat9'|| selectedSeat==='seat10'|| selectedSeat==='seat11'){
+        cam1.classList.remove('disabled');
+        cam2.classList.add('disabled');
+      } else if(selectedSeat==='seat1' || selectedSeat==='seat2' || selectedSeat==='seat3' || selectedSeat==='seat4' || selectedSeat==='seat5'){
+        cam1.classList.add('disabled');
+        cam2.classList.remove('disabled');
+      } 
+      else{
+         cam1.classList.add('disabled');
+         cam2.classList.add('disabled');
+      }
+    }
+
+    function autoSelectCam(){
+      if(modePanorama.classList.contains('selected')) return;
+      if(selectedSeat==='seat6'|| selectedSeat==='seat7'|| selectedSeat==='seat8'|| selectedSeat==='seat9'|| selectedSeat==='seat10'|| selectedSeat==='seat11') cam1.click();
+      else cam2.click();
+    }
+
+    function renderOrientation(){
+      if(!selectedCam) orientationDisplay.textContent='Pan: –, Tilt: –';
+      else { const o=orientationMap[selectedCam]; orientationDisplay.textContent=`Pan: ${o.pan}°, Tilt: ${o.tilt}°`; }
+    }
+
+    function setInitialState() {
+      // 禁用设置、PTZ、保存
+      btnChange.disabled = true;
+      btnSave.disabled = true;
+      arrows.forEach(a => a.classList.add('disabled'));
+      btnZoomIn.disabled = true;
+      btnZoomOut.disabled = true;
+}
+
+      seats.forEach(s=>{
+        s.addEventListener('click',async()=>{
+          modePanorama.classList.remove('selected');
+          selectedSeat=s.id;
+          seats.forEach(x=>x.classList.remove('selected'));
+          s.classList.add('selected');
+          updateCameraButtons();
+
+          await autoSelectCam();
+          renderOrientation();
+          enableSettingOnly();
+
+              // 🎯 清空 orientation 显示
+            try {
+              const state = await fetch('/api/cam/get').then(r=>r.json());
+              orientationMap.cam1 = state['1'];
+              orientationMap.cam2 = state['2'];
+            } catch (e) {
+              orientationMap.cam1 = { pan: 0, tilt: 0, zoom: 100 };
+              orientationMap.cam2 = { pan: 0, tilt: 0, zoom: 100 };
+            }
+
+          renderOrientation();
+
+          // ✅ 调用官方预设接口
+          try {
+            await postJson('/api/cam/preset/activate', { seat: selectedSeat });
+          } catch (e) {
+            alert('调用预设失败');
+          }
+        });
+      });
+
+
+    cams.forEach(cam=>{
+      cam.addEventListener('click',async()=>{
+        if(cam.classList.contains('disabled')) return;
+        const camId=cam.id.replace('cam','');
+        try{
+          await postJson('/api/cam/select',{cam:camId});
+          selectedCam=cam.id;
+          cams.forEach(c=>c.classList.remove('active'));
+          cam.classList.add('active');
+          renderOrientation();
+        }catch{alert('无法切换摄像头');}
+      });
+    });
+
+    arrows.forEach(arr=>{
+      arr.addEventListener('click',async()=>{
+        if(!selectedCam) return;const dir=arr.dataset.dir,step=parseInt(arr.dataset.step);
+        orientationMap[selectedCam][dir]+=step*5;
+        try{await postJson('/api/cam/ptz',{pan:orientationMap[selectedCam].pan,tilt:orientationMap[selectedCam].tilt,zoom:orientationMap[selectedCam].zoom});}catch{}
+        renderOrientation();
+      });
+    });
+
+    btnZoomIn.addEventListener('click',async()=>{if(!selectedCam)return;try{const d=await postJson('/api/cam/zoom',{action:'in'});orientationMap['cam'+d.cam].zoom=d.zoom;}catch{}renderOrientation();});
+    btnZoomOut.addEventListener('click',async()=>{if(!selectedCam)return;try{const d=await postJson('/api/cam/zoom',{action:'out'});orientationMap['cam'+d.cam].zoom=d.zoom;}catch{}renderOrientation();});
+
+    modePanorama.addEventListener('click', async () => {
+      seats.forEach(x => x.classList.remove('selected'));
+      modePanorama.classList.add('selected');
+      updateCameraButtons();
+      renderOrientation();
+      setInitialState();
+      try {
+        await postJson('/api/cam/preset/activate', { presetId: 32 });
+      } catch (e) {
+        alert('调用全景预设失败');
+      }
+    });
+
+
+    btnChange.addEventListener('click', async () => {
+      if (!selectedSeat) return alert('请先选择座位');
+      enablePTZAndSaveOnly();
+
+      if (selectedCam) {
+        orientationMap[selectedCam] = { pan: 0, tilt: 0, zoom: 100 };
+        renderOrientation();
+
+        // ✅ 通知后端也从0开始
+        await postJson('/api/cam/set', {
+          cam: selectedCam.replace('cam', ''),
+          pan: 0,
+          tilt: 0,
+          zoom: 100
+        });
+      }
+    });
+
+
+
+    btnSave.addEventListener('click', async () => {
+      if (!selectedSeat) return alert('请先选择座位');
+
+      try {
+        const res = await postJson('/api/cam/preset/save', { seat: selectedSeat });
+        alert(`预设已保存 (CameraId: ${res.cameraId}, PresetId: ${res.presetId})`);
+        disablePTZAndSaveEnableSetting();
+      } catch (e) {
+        alert('保存失败：' + e.message);
+      }
+    });
+
+
+    function enableSettingOnly() {
+      btnChange.disabled = false;
+      btnSave.disabled = true;
+      arrows.forEach(a => a.classList.add('disabled'));
+      btnZoomIn.disabled = true;
+      btnZoomOut.disabled = true;
+    }
+
+    function enablePTZAndSaveOnly() {
+      btnChange.disabled = true;
+      btnSave.disabled = false;
+      arrows.forEach(a => a.classList.remove('disabled'));
+      btnZoomIn.disabled = false;
+      btnZoomOut.disabled = false;
+    }
+
+    function disablePTZAndSaveEnableSetting() {
+      btnChange.disabled = false;
+      btnSave.disabled = true;
+      arrows.forEach(a => a.classList.add('disabled'));
+      btnZoomIn.disabled = true;
+      btnZoomOut.disabled = true;
+    }
+
+
+    renderOrientation();
+    updateCameraButtons();
+    setInitialState();
+  </script>
+</body>
+</html>
