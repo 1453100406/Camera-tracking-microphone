@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>Mike</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    #wrapper {
+      width: 1000px;
+      height: 600px;
+      max-width: 1000px;
+      max-height: 800px;
+      margin: 20px auto;
+      position: relative;
+      border: 2px solid #00aaff;
+      background: #fbfcfc;
+      font-family: sans-serif;
+    }
+    header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+    }
+    #logo { width: 300px; height: 60px; margin-right: 20px; }
+    #logo img { width: 100%; height: 100%; object-fit: contain; }
+    header h1 {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 32px;
+    }
+    .table-image-container {
+      position: absolute;
+      top: 26.7%;
+      left: 15%;
+      width: 70%;
+      height: 41.7%;
+      background-image: url("../static/table.png");
+      background-size: cover;
+      background-position: center;
+      border-radius: 30px;
+      overflow: hidden;
+    }
+    .seat {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      line-height: 60px;
+      text-align: center;
+      border: 2px solid #002f47;
+      border-radius: 10px;
+      background-image: url("../static/marketer.png");
+      background-size: cover;
+      background-position: center;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 1rem;
+      text-shadow: 1px 1px 2px #000;
+      transition: transform 0.1s;
+    }
+    .seat.active { transform: scale(1.1); }
+    #seat1  { top: 70%; left: 75%; }
+    #seat2  { top: 70%; left: 62%; }
+    #seat3  { top: 70%; left: 49%; }
+    #seat4  { top: 70%; left: 36%; }
+    #seat5  { top: 70%; left: 23%; }
+    #seat6  { top: 42%; left:  8%; }
+    #seat7  { top: 15%; left: 23%; }
+    #seat8  { top: 15%; left: 36%; }
+    #seat9  { top: 15%; left: 49%; }
+    #seat10 { top: 15%; left: 62%; }
+    #seat11 { top: 15%; left: 75%; }
+
+    /* 高亮 */
+    #btnTracking.active {
+      background-color: #ffaa00;
+      border-color: #ffaa00;
+      color: white;
+      font-weight: bold;
+    }
+
+    /* 单独控制两个按钮区域 */
+    #panel-tracking {
+      position: absolute;
+      top: 42%; right:  1%;
+      bottom: 0;
+      margin: 10px;
+    }
+    #panel-camera {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      margin: 10px;
+    }
+    .action-btn {
+      padding:10px 16px; border:2px solid #00aaff;
+      border-radius:6px; background:#00aaff; color:#fcfbfb;
+      font-size:14px; cursor:pointer; width:120px;
+    }
+    #btnCamera {
+      width:150px; height:50px; border:5px solid #141314;color:#0e0d0d;
+      border-radius:10px; background:#fff; font-size:18px; cursor:pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrapper">
+    <header>
+      <div id="logo"><img src="../static/LOGO.png" alt="Logo"></div>
+      <h1>화상회의 자동추적 시스템</h1>
+    </header>
+
+    <div class="table-image-container"></div>
+
+    <button class="seat" id="seat1">1</button>
+    <button class="seat" id="seat2">2</button>
+    <button class="seat" id="seat3">3</button>
+    <button class="seat" id="seat4">4</button>
+    <button class="seat" id="seat5">5</button>
+    <button class="seat" id="seat6">6</button>
+    <button class="seat" id="seat7">7</button>
+    <button class="seat" id="seat8">8</button>
+    <button class="seat" id="seat9">9</button>
+    <button class="seat" id="seat10">10</button>
+    <button class="seat" id="seat11">11</button>
+
+    <!-- Tracking 区域 -->
+    <div id="panel-tracking">
+      <button class="action-btn" id="btnTracking">자동추적</button>
+    </div>
+
+    <!-- Camera 区域 -->
+    <div id="panel-camera">
+      <button class="action-btn" id="btnCamera" onclick="location.href='/'">카메라</button>
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const seats = document.querySelectorAll('.seat');
+      let selectedSeat = null;
+
+      const btnTracking = document.getElementById('btnTracking');
+      const btnCamera = document.getElementById('btnCamera');
+      let trackingActive = false;
+
+      // 初始化 & 轮询麦克风状态
+      function updateMicIcons() {
+        fetch('/api/discussion/speakers')
+          .then(res => res.json())
+          .then(data => {
+            const activeSeats = Array.isArray(data) ? data : [];
+            for (let i = 1; i <= 11; i++) {
+              const btn = document.getElementById(`seat${i}`);
+              if (activeSeats.includes(i)) {
+                btn.style.backgroundImage = "url('../static/advertiser.png')";
+              } else {
+                btn.style.backgroundImage = "url('../static/marketer.png')";
+              }
+            }
+          })
+          .catch(err => console.error('获取麦克风状态失败:', err));
+      }
+
+      // 页面加载后立即执行一次
+      updateMicIcons();
+
+      // 每2秒轮询一次
+      setInterval(updateMicIcons, 2000);
+
+
+      btnTracking.addEventListener('click', () => {
+        //trackingActive = !trackingActive;
+        setTracking(!trackingActive);
+        // if (trackingActive) {
+        //   btnTracking.classList.add('active');
+        //   btnCamera.disabled = true;
+        //   btnCamera.style.opacity = '0.5'; // 视觉上变灰
+        //   btnCamera.style.cursor = 'not-allowed';
+        // } else {
+        //   btnTracking.classList.remove('active');
+        //   btnCamera.disabled = false;
+        //   btnCamera.style.opacity = '1';
+        //   btnCamera.style.cursor = 'pointer';
+        // }
+      });
+
+      //自动追踪
+      function setTracking(enabled) {
+        fetch('/api/tracking/enable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: enabled })
+        })
+          .then(res => res.json())
+          .then(data => {
+            trackingActive = data.tracking;
+            updateTrackingUI();
+          })
+          .catch(err => {
+            console.error('追踪控制失败:', err);
+          });
+      }
+
+      function updateTrackingUI() {
+        if (trackingActive) {
+          btnTracking.classList.add('active');
+          btnCamera.disabled = true;
+          btnCamera.style.opacity = '0.5';
+          btnCamera.style.cursor = 'not-allowed';
+        } else {
+          btnTracking.classList.remove('active');
+          btnCamera.disabled = false;
+          btnCamera.style.opacity = '1';
+          btnCamera.style.cursor = 'pointer';
+        }
+      }
+
+
+      seats.forEach(btn => {
+        btn.addEventListener('click', () => {
+          seats.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          selectedSeat = parseInt(btn.textContent, 10);
+          console.log(`Selected seat: ${selectedSeat}`);
+        });
+      });
+
+      function setMic(seatNumber, on) {
+        const url = `/api/discussion/seats/${seatNumber}`;
+        fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ microphoneOn: on, requestingToSpeak: false })
+        })
+        .then(res => {
+          if (res.ok) {
+            console.log(`Seat ${seatNumber} microphone ${on ? 'on' : 'off'} success`);
+            document.getElementById(`seat${seatNumber}`).style.backgroundImage = on
+              ? "url('../static/advertiser.png')"
+              : "url('../static/marketer.png')";
+          } else {
+            console.error(`Failed to set mic: HTTP ${res.status}`);
+          }
+        })
+        .catch(err => console.error('Error:', err));
+      }
+      
+      seats.forEach(btn => {
+       btn.addEventListener('dblclick', () => {
+        const seatNumber = parseInt(btn.textContent, 10);
+        const bg = getComputedStyle(btn).backgroundImage;
+        const isOn = bg.includes('advertiser.png');
+        setMic(seatNumber, !isOn);
+      });
+      });
+    });
+  </script>
+</body>
+</html>
