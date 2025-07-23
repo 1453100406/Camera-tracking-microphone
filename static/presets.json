@@ -1,0 +1,15 @@
+{
+  "seat1":  { "pan": 20,  "tilt": -10, "zoom": 175 },
+  "seat2":  { "pan": 60,  "tilt": 5,  "zoom": 225 },
+  "seat3":  { "pan": 135,   "tilt": 15,   "zoom": 325 },
+  "seat4":  { "pan": 95, "tilt": 10,   "zoom": 325 },
+  "seat5":  { "pan": 195, "tilt": 20,  "zoom": 325 },
+
+  "seat6":  { "pan": -60, "tilt": 0,   "zoom": 225 },
+
+  "seat7":  { "pan": 545,  "tilt": 10,  "zoom": 325 },
+  "seat8":  { "pan": 310,  "tilt": -5,   "zoom": 275 },
+  "seat9":  { "pan": 390,  "tilt": -50,  "zoom": 275 },
+  "seat10": { "pan": 370,  "tilt": -100, "zoom": 225 },
+  "seat11": { "pan": 270,   "tilt": -160, "zoom": 75 }
+}
